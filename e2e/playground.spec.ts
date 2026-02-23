@@ -7,7 +7,7 @@ test.describe('Playground', () => {
   })
 
   // Helper to get mode tab buttons (which contain descriptive text)
-  function modeTab(page: any, mode: 'crack' | 'detect' | 'decrypt') {
+  function modeTab(page: any, mode: 'crack' | 'detect' | 'decrypt' | 'encrypt') {
     return page.locator(`button:has(span.font-semibold:text-is("${mode}"))`)
   }
 
@@ -148,6 +148,38 @@ test.describe('Playground', () => {
     // Switch back to crack mode
     await modeTab(page, 'crack').click()
     await expect(page.locator('select')).not.toBeVisible()
+  })
+
+  test('encrypt mode: encrypts plaintext with selected cipher', async ({ page }) => {
+    await modeTab(page, 'encrypt').click()
+
+    // Cipher selector should be visible in encrypt mode
+    await expect(page.locator('select')).toBeVisible()
+
+    await page.locator('select').selectOption('caesar')
+
+    const textarea = page.getByPlaceholder('enter plaintext here...')
+    await textarea.fill('Hello World')
+
+    await actionButton(page).click()
+
+    // Should show "encrypted" header and the ciphertext
+    await expect(page.locator('h2', { hasText: 'encrypted' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText('Khoor Zruog')).toBeVisible()
+    // Cipher type badge
+    await expect(page.locator('.result-card').filter({ hasText: 'caesar' }).first()).toBeVisible()
+  })
+
+  test('encrypt mode: encrypts with Base64', async ({ page }) => {
+    await modeTab(page, 'encrypt').click()
+    await page.locator('select').selectOption('base64')
+
+    const textarea = page.getByPlaceholder('enter plaintext here...')
+    await textarea.fill('Hello World')
+
+    await actionButton(page).click()
+
+    await expect(page.getByText('SGVsbG8gV29ybGQ=')).toBeVisible({ timeout: 10000 })
   })
 
   test('max results input limits output', async ({ page }) => {
