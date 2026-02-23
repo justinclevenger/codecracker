@@ -124,6 +124,43 @@ describe('CLI', () => {
     });
   });
 
+  describe('--encrypt', () => {
+    it('encrypts with Caesar cipher', async () => {
+      const { stdout } = await run(['--encrypt', '--cipher', 'caesar', 'Hello World']);
+      expect(stdout).toContain('[caesar] Khoor Zruog');
+      expect(stdout).toContain('Key: 3');
+    });
+
+    it('encrypts with Base64', async () => {
+      const { stdout } = await run(['--encrypt', '--cipher', 'base64', 'Hello World']);
+      expect(stdout).toContain('[base64] SGVsbG8gV29ybGQ=');
+    });
+
+    it('encrypts with ROT13', async () => {
+      const { stdout } = await run(['--encrypt', '--cipher', 'rot13', 'Hello World']);
+      expect(stdout).toContain('[rot13] Uryyb Jbeyq');
+    });
+
+    it('outputs valid JSON with --json', async () => {
+      const { stdout } = await run(['--json', '--encrypt', '--cipher', 'caesar', 'Hello World']);
+      const parsed = JSON.parse(stdout);
+      expect(parsed).toHaveProperty('ciphertext', 'Khoor Zruog');
+      expect(parsed).toHaveProperty('cipherType', 'caesar');
+      expect(parsed).toHaveProperty('key', 3);
+    });
+
+    it('errors when --cipher is missing', async () => {
+      const { stderr } = await run(['--encrypt', 'Hello']);
+      expect(stderr).toContain('--encrypt requires --cipher');
+    });
+
+    it('encrypts Vigenere with --key', async () => {
+      const { stdout } = await run(['--encrypt', '--cipher', 'vigenere', '--key', 'secret', 'Hello']);
+      expect(stdout).toContain('[vigenere]');
+      expect(stdout).toContain('Key: secret');
+    });
+  });
+
   describe('edge cases', () => {
     it('prints help when stdin closes with no input', async () => {
       // Close stdin immediately to simulate empty pipe
