@@ -1,9 +1,10 @@
-import { crack, decrypt, detect } from './index.js';
-import type { CrackResult, DetectionCandidate, CrackResponse } from './types.js';
+import { crack, decrypt, detect, encrypt } from './index.js';
+import type { CrackResult, DetectionCandidate, CrackResponse, EncryptResult, CipherType } from './types.js';
 
 interface CliArgs {
   help: boolean;
   detect: boolean;
+  encrypt: boolean;
   cipher?: string;
   key?: string;
   top: number;
@@ -16,6 +17,7 @@ function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     help: false,
     detect: false,
+    encrypt: false,
     top: 5,
     json: false,
     verbose: false,
@@ -31,6 +33,8 @@ function parseArgs(argv: string[]): CliArgs {
       args.help = true;
     } else if (arg === '--detect') {
       args.detect = true;
+    } else if (arg === '--encrypt') {
+      args.encrypt = true;
     } else if (arg === '--json') {
       args.json = true;
     } else if (arg === '--verbose' || arg === '-v') {
@@ -70,11 +74,14 @@ Usage:
   codecracker --cipher caesar "Khoor Zruog"            # known cipher type
   codecracker --cipher vigenere --key SECRET "text"     # with key
   codecracker --top 3 --json "Uryyb Jbeyq"             # JSON, top 3
+  codecracker --encrypt --cipher caesar "Hello World"   # encrypt with cipher
+  codecracker --encrypt --cipher aes --key <32B> "msg"  # AES encrypt
 
 Flags:
   --detect          Only detect cipher type, don't decrypt
+  --encrypt         Encrypt mode (requires --cipher)
   --cipher <type>   Specify cipher type (skip auto-detection)
-  --key <key>       Provide decryption key
+  --key <key>       Provide encryption/decryption key
   --top <n>         Max results (default: 5)
   --json            Output as JSON
   --verbose, -v     Show details and quality scores
@@ -169,7 +176,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Get ciphertext from args or stdin
+  // Get input text from args or stdin
   let ciphertext = args.ciphertext;
   if (!ciphertext) {
     ciphertext = await readStdin();
@@ -178,6 +185,31 @@ async function main(): Promise<void> {
   if (!ciphertext) {
     printHelp();
     process.exit(1);
+  }
+
+  // --encrypt mode
+  if (args.encrypt) {
+    if (!args.cipher) {
+      process.stderr.write('Error: --encrypt requires --cipher\n');
+      process.exit(1);
+    }
+    const result = await encrypt(ciphertext, args.cipher as CipherType, {
+      key: args.key,
+    });
+    if (args.json) {
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+    } else {
+      process.stdout.write(`[${result.cipherType}] ${result.ciphertext}\n`);
+      if (result.key !== undefined) {
+        process.stdout.write(`  Key: ${result.key}\n`);
+      }
+      if (args.verbose && result.details) {
+        for (const [key, value] of Object.entries(result.details)) {
+          process.stdout.write(`  ${key}: ${JSON.stringify(value)}\n`);
+        }
+      }
+    }
+    return;
   }
 
   // --detect mode

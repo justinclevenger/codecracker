@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
-import { MORSE_TO_CHAR } from '../../data/morse.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
+import { CHAR_TO_MORSE, MORSE_TO_CHAR } from '../../data/morse.js';
 
 export class MorseSolver extends BaseSolver {
   readonly cipherType = 'morse' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim();
@@ -31,6 +32,25 @@ export class MorseSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    const words = plaintext.toUpperCase().split(' ');
+    const morseWords: string[] = [];
+    for (const word of words) {
+      const morseLetters: string[] = [];
+      for (const ch of word) {
+        const morse = CHAR_TO_MORSE[ch];
+        if (morse !== undefined && morse !== '/') {
+          morseLetters.push(morse);
+        }
+      }
+      if (morseLetters.length > 0) {
+        morseWords.push(morseLetters.join(' '));
+      }
+    }
+    const ciphertext = morseWords.join(' / ');
+    return this.makeEncryptResult(ciphertext, undefined, { encoding: 'morse' });
   }
 
   private isMorse(input: string): boolean {

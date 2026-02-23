@@ -53,10 +53,10 @@ for (const solver of builtinSolvers) {
 }
 
 // Public API
-export { crack, decrypt } from './cracker.js';
+export { crack, decrypt, encrypt } from './cracker.js';
 export type { CrackOptions } from './cracker.js';
 export { detect } from './detection/detector.js';
-export { registerSolver } from './registry.js';
+export { registerSolver, getEncryptableCipherTypes } from './registry.js';
 
 // Re-export types
 export type {
@@ -64,6 +64,8 @@ export type {
   CrackResult,
   CrackResponse,
   DetectionCandidate,
+  EncryptResult,
+  EncryptOptions,
   Solver,
   SolverOptions,
   PlaintextScore,

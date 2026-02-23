@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class AtbashSolver extends BaseSolver {
   readonly cipherType = 'atbash' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -14,6 +15,11 @@ export class AtbashSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    // Atbash is self-inverse
+    return this.makeEncryptResult(this.decrypt(plaintext), undefined, { method: 'atbash' });
   }
 
   private decrypt(text: string): string {

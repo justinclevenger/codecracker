@@ -17,3 +17,9 @@ export function getAllSolvers(): Solver[] {
 export function hasSolver(cipherType: CipherType): boolean {
   return solvers.has(cipherType);
 }
+
+export function getEncryptableCipherTypes(): CipherType[] {
+  return [...solvers.values()]
+    .filter(s => s.canEncrypt)
+    .map(s => s.cipherType);
+}

@@ -1,8 +1,9 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 
 export class UrlEncodingSolver extends BaseSolver {
   readonly cipherType = 'url-encoding' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim();
@@ -35,6 +36,11 @@ export class UrlEncodingSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    const ciphertext = encodeURIComponent(plaintext);
+    return this.makeEncryptResult(ciphertext, undefined, { encoding: 'url-encoding' });
   }
 
   private isUrlEncoded(input: string): boolean {

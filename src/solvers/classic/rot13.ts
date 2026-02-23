@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class Rot13Solver extends BaseSolver {
   readonly cipherType = 'rot13' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -14,6 +15,11 @@ export class Rot13Solver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    // ROT13 is self-inverse
+    return this.makeEncryptResult(this.decrypt(plaintext), 13, { shift: 13 });
   }
 
   private decrypt(text: string): string {

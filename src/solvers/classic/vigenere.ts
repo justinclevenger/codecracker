@@ -1,5 +1,5 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 import { chiSquaredVsEnglish } from '../../analysis/chi-squared.js';
 import { letterCounts } from '../../utils/text.js';
@@ -7,6 +7,7 @@ import { mod } from '../../utils/math.js';
 
 export class VigenereSolver extends BaseSolver {
   readonly cipherType = 'vigenere' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -43,6 +44,30 @@ export class VigenereSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key || typeof options.key !== 'string') {
+      throw new Error("Cipher 'vigenere' requires a key for encryption");
+    }
+    const key = options.key.toLowerCase();
+    let result = '';
+    let keyIndex = 0;
+    for (const ch of plaintext) {
+      const code = ch.charCodeAt(0);
+      if (code >= 65 && code <= 90) {
+        const shift = key.charCodeAt(keyIndex % key.length) - 97;
+        result += String.fromCharCode(mod(code - 65 + shift, 26) + 65);
+        keyIndex++;
+      } else if (code >= 97 && code <= 122) {
+        const shift = key.charCodeAt(keyIndex % key.length) - 97;
+        result += String.fromCharCode(mod(code - 97 + shift, 26) + 97);
+        keyIndex++;
+      } else {
+        result += ch;
+      }
+    }
+    return this.makeEncryptResult(result, key, { keyLength: key.length });
   }
 
   private decrypt(text: string, key: string): string {

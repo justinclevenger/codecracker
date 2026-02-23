@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
-import { createDecipheriv } from 'node:crypto';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
+import { createDecipheriv, createCipheriv, randomBytes } from 'node:crypto';
 
 export class AesSolver extends BaseSolver {
   readonly cipherType = 'aes' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     if (!options?.key) {
@@ -49,6 +50,31 @@ export class AesSolver extends BaseSolver {
     }
 
     return results;
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key) {
+      throw new Error("Cipher 'aes' requires a 32-byte key for encryption");
+    }
+    const keyBuffer = this.toKeyBuffer(options.key);
+    if (keyBuffer.length !== 32) {
+      throw new Error("Cipher 'aes' requires a 32-byte key for encryption");
+    }
+    const iv = options.iv
+      ? (Buffer.isBuffer(options.iv) ? options.iv : Buffer.from(options.iv, 'hex'))
+      : randomBytes(16);
+    if (iv.length !== 16) {
+      throw new Error("Cipher 'aes' requires a 16-byte IV");
+    }
+    const cipher = createCipheriv('aes-256-cbc', keyBuffer, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
+    // Prepend IV to ciphertext, output as base64
+    const combined = Buffer.concat([iv, encrypted]);
+    const ciphertext = combined.toString('base64');
+    return this.makeEncryptResult(ciphertext, undefined, {
+      algorithm: 'AES-256-CBC',
+      ivHex: iv.toString('hex'),
+    });
   }
 
   private tryDecrypt(

@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class PlayfairSolver extends BaseSolver {
   readonly cipherType = 'playfair' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -20,6 +21,45 @@ export class PlayfairSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key || typeof options.key !== 'string') {
+      throw new Error("Cipher 'playfair' requires a key for encryption");
+    }
+    const grid = this.buildGrid(options.key);
+    // Clean input: uppercase, merge J -> I, alpha only
+    const clean = plaintext.toUpperCase().replace(/J/g, 'I').replace(/[^A-Z]/g, '');
+    // Build digrams, inserting X between duplicate pairs and padding if odd
+    const digrams: string[] = [];
+    let i = 0;
+    while (i < clean.length) {
+      const a = clean[i];
+      const b = i + 1 < clean.length ? clean[i + 1] : 'X';
+      if (a === b) {
+        digrams.push(a + 'X');
+        i++;
+      } else {
+        digrams.push(a + b);
+        i += 2;
+      }
+    }
+    let result = '';
+    for (const pair of digrams) {
+      const [rowA, colA] = this.findPosition(grid, pair[0]);
+      const [rowB, colB] = this.findPosition(grid, pair[1]);
+      if (rowA === rowB) {
+        result += grid[rowA][(colA + 1) % 5];
+        result += grid[rowB][(colB + 1) % 5];
+      } else if (colA === colB) {
+        result += grid[(rowA + 1) % 5][colA];
+        result += grid[(rowB + 1) % 5][colB];
+      } else {
+        result += grid[rowA][colB];
+        result += grid[rowB][colA];
+      }
+    }
+    return this.makeEncryptResult(result.toLowerCase(), options.key, { method: 'playfair' });
   }
 
   /**

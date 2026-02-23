@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class RailFenceSolver extends BaseSolver {
   readonly cipherType = 'rail-fence' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -26,6 +27,23 @@ export class RailFenceSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    const rails = options?.key ? parseInt(String(options.key), 10) : 3;
+    if (isNaN(rails) || rails < 2) throw new Error("Cipher 'rail-fence' requires a numeric key >= 2 for encryption");
+    const len = plaintext.length;
+    const railRows: string[] = Array.from({ length: rails }, () => '');
+    let rail = 0;
+    let direction = 1;
+    for (let i = 0; i < len; i++) {
+      railRows[rail] += plaintext[i];
+      if (rail === 0) direction = 1;
+      else if (rail === rails - 1) direction = -1;
+      rail += direction;
+    }
+    const ciphertext = railRows.join('');
+    return this.makeEncryptResult(ciphertext, rails, { rails });
   }
 
   private decrypt(ciphertext: string, rails: number): string {

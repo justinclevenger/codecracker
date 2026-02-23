@@ -1,10 +1,11 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 export class Base32Solver extends BaseSolver {
   readonly cipherType = 'base32' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim().toUpperCase();
@@ -32,6 +33,24 @@ export class Base32Solver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    const bytes = Buffer.from(plaintext, 'utf-8');
+    let bits = '';
+    for (let i = 0; i < bytes.length; i++) {
+      bits += bytes[i].toString(2).padStart(8, '0');
+    }
+    let result = '';
+    for (let i = 0; i < bits.length; i += 5) {
+      const chunk = bits.slice(i, i + 5).padEnd(5, '0');
+      result += BASE32_ALPHABET[parseInt(chunk, 2)];
+    }
+    // Add padding
+    while (result.length % 8 !== 0) {
+      result += '=';
+    }
+    return this.makeEncryptResult(result, undefined, { encoding: 'base32' });
   }
 
   private isBase32(input: string): boolean {

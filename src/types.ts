@@ -43,9 +43,23 @@ export interface SolverOptions {
   maxResults?: number;
 }
 
+export interface EncryptResult {
+  ciphertext: string;
+  cipherType: CipherType;
+  key?: string | number;
+  details?: Record<string, unknown>;
+}
+
+export interface EncryptOptions {
+  key?: string | Buffer;
+  iv?: string | Buffer;
+}
+
 export interface Solver {
   readonly cipherType: CipherType;
+  readonly canEncrypt?: boolean;
   solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]>;
+  encrypt?(plaintext: string, options?: EncryptOptions): Promise<EncryptResult>;
 }
 
 export interface PlaintextScore {

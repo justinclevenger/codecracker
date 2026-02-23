@@ -1,5 +1,5 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 import { letterCounts } from '../../utils/text.js';
 
@@ -8,6 +8,7 @@ const ENGLISH_FREQ_ORDER = 'etaoinshrdlcumwfgypbvkjxqz';
 
 export class SubstitutionSolver extends BaseSolver {
   readonly cipherType = 'substitution' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -33,6 +34,25 @@ export class SubstitutionSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key || typeof options.key !== 'string' || options.key.length !== 26) {
+      throw new Error("Cipher 'substitution' requires a 26-character key for encryption");
+    }
+    const keyAlphabet = options.key.toLowerCase();
+    // Forward map: plaintext 'a'+i -> ciphertext keyAlphabet[i]
+    let result = '';
+    for (const ch of plaintext) {
+      const code = ch.toLowerCase().charCodeAt(0);
+      if (code >= 97 && code <= 122) {
+        const mapped = keyAlphabet[code - 97];
+        result += ch === ch.toUpperCase() ? mapped.toUpperCase() : mapped;
+      } else {
+        result += ch;
+      }
+    }
+    return this.makeEncryptResult(result, options.key, { method: 'substitution' });
   }
 
   /**

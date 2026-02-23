@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class ColumnarTranspositionSolver extends BaseSolver {
   readonly cipherType = 'columnar-transposition' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     try {
@@ -46,6 +47,30 @@ export class ColumnarTranspositionSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key || typeof options.key !== 'string') {
+      throw new Error("Cipher 'columnar-transposition' requires a key for encryption");
+    }
+    // Derive permutation from keyword: sort letters alphabetically, use indices as permutation
+    const keyStr = options.key.toLowerCase();
+    const indexed = keyStr.split('').map((ch, i) => ({ ch, i }));
+    indexed.sort((a, b) => a.ch.localeCompare(b.ch) || a.i - b.i);
+    const permutation = indexed.map(item => item.i);
+
+    const numCols = permutation.length;
+    // Write plaintext row by row into columns
+    const columns: string[] = Array.from({ length: numCols }, () => '');
+    for (let i = 0; i < plaintext.length; i++) {
+      columns[i % numCols] += plaintext[i];
+    }
+    // Read columns in permutation order
+    let ciphertext = '';
+    for (const colIdx of permutation) {
+      ciphertext += columns[colIdx];
+    }
+    return this.makeEncryptResult(ciphertext, options.key, { keyLength: numCols, permutation });
   }
 
   /**

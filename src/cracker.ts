@@ -1,4 +1,4 @@
-import type { CipherType, CrackResponse, CrackResult, SolverOptions } from './types.js';
+import type { CipherType, CrackResponse, CrackResult, EncryptOptions, EncryptResult, SolverOptions } from './types.js';
 import { detect } from './detection/detector.js';
 import { getSolver, getAllSolvers, hasSolver } from './registry.js';
 import { scorePlaintext, finalConfidence } from './analysis/scoring.js';
@@ -99,6 +99,30 @@ export async function decrypt(
   }
 
   return results.sort((a, b) => b.confidence - a.confidence);
+}
+
+/**
+ * Encrypt plaintext with a specific cipher type.
+ */
+export async function encrypt(
+  plaintext: string,
+  cipherType: CipherType,
+  options: EncryptOptions = {},
+): Promise<EncryptResult> {
+  if (!plaintext || plaintext.length === 0) {
+    throw new Error('Empty plaintext provided');
+  }
+
+  const solver = getSolver(cipherType);
+  if (!solver) {
+    throw new Error(`No solver registered for cipher type: ${cipherType}`);
+  }
+
+  if (!solver.canEncrypt || !solver.encrypt) {
+    throw new Error(`Cipher '${cipherType}' does not support encryption`);
+  }
+
+  return solver.encrypt(plaintext, options);
 }
 
 /**

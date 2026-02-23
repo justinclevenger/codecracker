@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { crack, decrypt, detect } from 'codecracker'
-import type { CrackResult, DetectionCandidate, CipherType } from 'codecracker'
+import { crack, decrypt, detect, encrypt, getEncryptableCipherTypes } from 'codecracker'
+import type { CrackResult, DetectionCandidate, CipherType, EncryptResult } from 'codecracker'
 
-type Mode = 'crack' | 'detect' | 'decrypt'
+type Mode = 'crack' | 'detect' | 'decrypt' | 'encrypt'
 
 const CIPHER_TYPES: CipherType[] = [
   'caesar', 'rot13', 'atbash', 'vigenere', 'substitution',
@@ -22,10 +22,13 @@ const EXAMPLES = [
   { label: 'URL', input: 'Hello%20World%21' },
 ]
 
+const ENCRYPTABLE_TYPES = getEncryptableCipherTypes()
+
 const MODE_LABELS: Record<Mode, { cmd: string; desc: string }> = {
   crack: { cmd: 'crack', desc: 'auto-detect & decrypt' },
   detect: { cmd: 'detect', desc: 'identify cipher type' },
   decrypt: { cmd: 'decrypt', desc: 'known cipher + key' },
+  encrypt: { cmd: 'encrypt', desc: 'encrypt plaintext' },
 }
 
 function ConfidenceBar({ value }: { value: number }) {
@@ -134,6 +137,7 @@ export default function App() {
 
   const [crackResults, setCrackResults] = useState<CrackResult[]>([])
   const [detectionResults, setDetectionResults] = useState<DetectionCandidate[]>([])
+  const [encryptResult, setEncryptResult] = useState<EncryptResult | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -152,10 +156,16 @@ export default function App() {
     setError('')
     setCrackResults([])
     setDetectionResults([])
+    setEncryptResult(null)
     setWarnings([])
 
     try {
-      if (mode === 'detect') {
+      if (mode === 'encrypt') {
+        const result = await encrypt(input, cipherType, {
+          key: key || undefined,
+        })
+        setEncryptResult(result)
+      } else if (mode === 'detect') {
         const candidates = detect(input)
         setDetectionResults(candidates.slice(0, maxResults))
       } else if (mode === 'decrypt') {
@@ -180,7 +190,7 @@ export default function App() {
     }
   }, [input, mode, cipherType, key, maxResults])
 
-  const hasResults = crackResults.length > 0 || detectionResults.length > 0
+  const hasResults = crackResults.length > 0 || detectionResults.length > 0 || encryptResult !== null
 
   return (
     <div className="min-h-screen relative">
@@ -225,15 +235,15 @@ export default function App() {
 
         {/* Main input panel */}
         <div className="border border-[var(--terminal-border-bright)] rounded-md bg-[var(--terminal-surface)] overflow-hidden mb-5">
-          {/* Decrypt mode options */}
-          {mode === 'decrypt' && (
+          {/* Decrypt/Encrypt mode options */}
+          {(mode === 'decrypt' || mode === 'encrypt') && (
             <div className="flex gap-3 p-3 border-b border-[var(--terminal-border)] bg-[var(--terminal-bg)]">
               <select
                 value={cipherType}
                 onChange={(e) => setCipherType(e.target.value as CipherType)}
                 className="rounded border border-[var(--terminal-border-bright)] bg-[var(--terminal-surface)] px-2.5 py-1.5 text-[13px] text-[var(--phosphor)] cursor-pointer"
               >
-                {CIPHER_TYPES.map((t) => (
+                {(mode === 'encrypt' ? ENCRYPTABLE_TYPES : CIPHER_TYPES).map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -254,7 +264,7 @@ export default function App() {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit()
             }}
-            placeholder="paste ciphertext here..."
+            placeholder={mode === 'encrypt' ? 'enter plaintext here...' : 'paste ciphertext here...'}
             rows={3}
             className="w-full bg-transparent px-4 py-3 text-[14px] text-[var(--phosphor-bright)] placeholder:text-[var(--phosphor-dim)] placeholder:opacity-40 resize-y border-none"
           />
@@ -266,7 +276,7 @@ export default function App() {
               disabled={loading || !input.trim()}
               className="rounded px-5 py-1.5 text-[13px] font-semibold cursor-pointer transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-[var(--phosphor)] text-[var(--terminal-bg)] hover:bg-[var(--phosphor-bright)] hover:shadow-[0_0_20px_rgba(57,255,20,0.3)] active:scale-[0.98]"
             >
-              {loading ? 'processing...' : mode === 'detect' ? 'detect' : 'crack'}
+              {loading ? 'processing...' : mode === 'encrypt' ? 'encrypt' : mode === 'detect' ? 'detect' : 'crack'}
             </button>
 
             <div className="flex items-center gap-1.5 ml-auto text-[12px] text-[var(--phosphor-dim)]">
@@ -322,6 +332,31 @@ export default function App() {
             <div className="mb-4 rounded-md border border-[var(--amber-dim)] bg-[rgba(255,176,0,0.05)] px-4 py-3 text-[13px] text-[var(--amber)] animate-[fade-up_0.2s_ease-out]">
               <span className="opacity-60 mr-2">WARN</span>
               {warnings.join(' | ')}
+            </div>
+          )}
+
+          {/* Encrypt result */}
+          {encryptResult && (
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2 mb-3">
+                <h2 className="text-[11px] text-[var(--phosphor-dim)] uppercase tracking-[0.2em] font-semibold">encrypted</h2>
+                <div className="flex-1 h-px bg-[var(--terminal-border)]" />
+              </div>
+              <div className="result-card border border-[var(--terminal-border)] rounded-md bg-[var(--terminal-surface)] p-4 hover:border-[var(--terminal-border-bright)] transition-colors">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="inline-flex items-center rounded border border-[var(--phosphor-dim)] bg-[rgba(57,255,20,0.08)] px-2 py-0.5 text-[11px] font-semibold text-[var(--phosphor)] uppercase tracking-wider">
+                    {encryptResult.cipherType}
+                  </span>
+                  {encryptResult.key !== undefined && (
+                    <span className="inline-flex items-center rounded border border-[var(--terminal-border-bright)] bg-[var(--terminal-bg)] px-2 py-0.5 text-[11px] text-[var(--amber)] tabular-nums">
+                      key: {String(encryptResult.key)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[var(--phosphor-bright)] break-all text-[15px] leading-relaxed select-all">
+                  {encryptResult.ciphertext}
+                </p>
+              </div>
             </div>
           )}
 

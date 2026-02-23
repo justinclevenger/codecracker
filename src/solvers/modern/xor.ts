@@ -1,9 +1,10 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 import { scorePlaintext } from '../../analysis/scoring.js';
 
 export class XorSolver extends BaseSolver {
   readonly cipherType = 'xor' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim();
@@ -25,6 +26,18 @@ export class XorSolver extends BaseSolver {
 
     // No key provided: brute-force single-byte XOR
     return this.bruteForceSingleByte(inputBytes);
+  }
+
+  async encrypt(plaintext: string, options?: EncryptOptions): Promise<EncryptResult> {
+    if (!options?.key) {
+      throw new Error("Cipher 'xor' requires a key for encryption");
+    }
+    const keyBytes = Buffer.isBuffer(options.key) ? options.key : Buffer.from(options.key, 'utf-8');
+    const inputBytes = Buffer.from(plaintext, 'utf-8');
+    const result = this.xorWithKey(inputBytes, keyBytes);
+    const ciphertext = result.toString('hex');
+    const keyDisplay = Buffer.isBuffer(options.key) ? options.key.toString('hex') : options.key;
+    return this.makeEncryptResult(ciphertext, keyDisplay, { method: 'xor', keyLength: keyBytes.length });
   }
 
   private decryptWithKey(inputBytes: Buffer, key: string | Buffer): CrackResult[] {

@@ -1,8 +1,9 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 
 export class BinarySolver extends BaseSolver {
   readonly cipherType = 'binary' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim();
@@ -30,6 +31,13 @@ export class BinarySolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    const ciphertext = Array.from(plaintext)
+      .map(ch => ch.charCodeAt(0).toString(2).padStart(8, '0'))
+      .join(' ');
+    return this.makeEncryptResult(ciphertext, undefined, { encoding: 'binary' });
   }
 
   private isBinary(input: string): boolean {

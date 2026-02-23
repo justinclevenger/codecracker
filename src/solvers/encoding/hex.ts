@@ -1,8 +1,9 @@
 import { BaseSolver } from '../base-solver.js';
-import type { CrackResult, SolverOptions } from '../../types.js';
+import type { CrackResult, EncryptOptions, EncryptResult, SolverOptions } from '../../types.js';
 
 export class HexSolver extends BaseSolver {
   readonly cipherType = 'hex' as const;
+  override readonly canEncrypt = true;
 
   async solve(ciphertext: string, _options?: SolverOptions): Promise<CrackResult[]> {
     const input = ciphertext.trim().replace(/\s+/g, '');
@@ -30,6 +31,11 @@ export class HexSolver extends BaseSolver {
     } catch {
       return [];
     }
+  }
+
+  async encrypt(plaintext: string, _options?: EncryptOptions): Promise<EncryptResult> {
+    const ciphertext = Buffer.from(plaintext, 'utf-8').toString('hex');
+    return this.makeEncryptResult(ciphertext, undefined, { encoding: 'hex' });
   }
 
   private isHex(input: string): boolean {
